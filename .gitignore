@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Heap dumps and profiling files
+*.hprof
+**/java_pid*.hprof
+
+# Large audio/video files (consider using Git LFS or hosting separately)
+# Uncomment if you want to exclude large media files from git
+# *.mp3
+# *.mp4
+# *.wav
+# *.flac
