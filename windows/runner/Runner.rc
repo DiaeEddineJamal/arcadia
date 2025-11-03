@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
+            VALUE "CompanyName", "com.Luziv" "\0"
             VALUE "FileDescription", "arcadia" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "arcadia" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.Luziv. All rights reserved." "\0"
             VALUE "OriginalFilename", "arcadia.exe" "\0"
             VALUE "ProductName", "arcadia" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

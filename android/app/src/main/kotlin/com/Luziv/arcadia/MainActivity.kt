@@ -1,4 +1,4 @@
-package com.example.arcadia
+package com.Luziv.arcadia
 
 import com.ryanheise.audioservice.AudioServiceActivity
 
