@@ -1,0 +1,18 @@
+# Sound Assets Placeholder
+
+This directory will contain the sound files for the Arcadia app.
+
+Recommended sound files to add:
+- rain.mp3 (gentle rain sounds)
+- ocean.mp3 (ocean waves)
+- forest.mp3 (forest ambience)
+- fireplace.mp3 (crackling fire)
+- white_noise.mp3 (white noise)
+- pink_noise.mp3 (pink noise)
+- brown_noise.mp3 (brown noise)
+- thunder.mp3 (distant thunder)
+- wind.mp3 (gentle wind)
+- cafe.mp3 (coffee shop ambience)
+
+Note: Sound files should be in MP3 format and optimized for looping.
+Ensure all sound files are royalty-free or properly licensed.
