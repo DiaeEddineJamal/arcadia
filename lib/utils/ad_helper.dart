@@ -24,5 +24,16 @@ class AdHelper {
     }
     throw UnsupportedError('Unsupported platform for interstitial ads');
   }
+
+  static String get settingsBannerAdUnitId {
+    if (Platform.isAndroid) {
+      // Real AdMob banner ad unit ID for settings
+      return 'ca-app-pub-6329609540816457/1648258626';
+    } else if (Platform.isIOS) {
+      // TODO: Add your iOS banner ad unit ID once created in AdMob
+      return 'ca-app-pub-3940256099942544/2934735716'; // Test ID for now
+    }
+    throw UnsupportedError('Unsupported platform for banner ads');
+  }
 }
 

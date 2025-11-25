@@ -8,11 +8,14 @@ import '../utils/ad_helper.dart';
 class AdService extends ChangeNotifier {
   bool _initialized = false;
   bool _isHomeBannerLoading = false;
+  bool _isSettingsBannerLoading = false;
   BannerAd? _homeBannerAd;
+  BannerAd? _settingsBannerAd;
   InterstitialAd? _libraryInterstitial;
   DateTime? _lastInterstitialShownAt;
 
   BannerAd? get homeBannerAd => _homeBannerAd;
+  BannerAd? get settingsBannerAd => _settingsBannerAd;
   bool get isInitialized => _initialized;
 
   Future<void> initialize() async {
@@ -20,6 +23,7 @@ class AdService extends ChangeNotifier {
     await MobileAds.instance.initialize();
     _initialized = true;
     _loadHomeBannerAd();
+    _loadSettingsBannerAd();
     _preloadLibraryInterstitial();
   }
 
@@ -40,6 +44,30 @@ class AdService extends ChangeNotifier {
           ad.dispose();
           _homeBannerAd = null;
           _isHomeBannerLoading = false;
+          notifyListeners();
+        },
+      ),
+    );
+    banner.load();
+  }
+
+  void _loadSettingsBannerAd() {
+    if (!_initialized || _isSettingsBannerLoading) return;
+    _isSettingsBannerLoading = true;
+    final banner = BannerAd(
+      size: AdSize.largeBanner,
+      adUnitId: AdHelper.settingsBannerAdUnitId,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          _settingsBannerAd = ad as BannerAd;
+          _isSettingsBannerLoading = false;
+          notifyListeners();
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _settingsBannerAd = null;
+          _isSettingsBannerLoading = false;
           notifyListeners();
         },
       ),
@@ -101,6 +129,7 @@ class AdService extends ChangeNotifier {
   @override
   void dispose() {
     _homeBannerAd?.dispose();
+    _settingsBannerAd?.dispose();
     _libraryInterstitial?.dispose();
     super.dispose();
   }

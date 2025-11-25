@@ -5,12 +5,14 @@ import 'package:provider/provider.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../widgets/glassmorphism_widgets.dart';
 import '../theme/app_theme.dart';
 import '../services/storage_service.dart';
 import '../services/video_background_service.dart';
 import '../services/audio_service.dart';
+import '../services/ad_service.dart';
 import '../models/app_settings.dart';
 import '../providers/app_settings_provider.dart';
 
@@ -109,6 +111,11 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 
                 // About section
                 _buildAboutSection(theme, accentColor),
+                
+                const SizedBox(height: 24),
+                
+                // Settings Banner Ad
+                const _SettingsBannerAdSlot(),
                 
                 const SizedBox(height: 120), // Bottom padding for nav bar
               ],
@@ -790,6 +797,31 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SettingsBannerAdSlot extends StatelessWidget {
+  const _SettingsBannerAdSlot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AdService>(
+      builder: (_, adService, __) {
+        final banner = adService.settingsBannerAd;
+        if (banner == null) {
+          return const SizedBox.shrink();
+        }
+
+        return GlassContainer(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: SizedBox(
+            width: banner.size.width.toDouble(),
+            height: banner.size.height.toDouble(),
+            child: AdWidget(ad: banner),
+          ),
+        );
+      },
     );
   }
 }
