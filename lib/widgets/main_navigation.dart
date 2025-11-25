@@ -4,6 +4,7 @@ import '../screens/home_screen.dart';
 import '../screens/sound_library_screen.dart';
 // Removed MixBuilder screen; mixing is now integrated into Library and PlayerBar
 import '../screens/settings_screen.dart';
+import '../services/ad_service.dart';
 import '../providers/app_settings_provider.dart';
 import '../theme/app_theme.dart';
 import 'enhanced_floating_bottom_nav.dart';
@@ -38,6 +39,10 @@ class _MainNavigationState extends State<MainNavigation> {
   void _onNavTap(int index) {
     if (index == _currentIndex) return;
     
+    if (index == 1) {
+      context.read<AdService>().maybeShowLibraryInterstitial();
+    }
+
     setState(() {
       _currentIndex = index;
     });

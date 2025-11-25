@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import '../services/ad_service.dart';
 import '../services/audio_service.dart';
 import '../services/storage_service.dart';
 import '../providers/app_settings_provider.dart';
@@ -190,6 +192,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildSectionHeader('Featured Sounds', theme, accentColor),
                 const SizedBox(height: 16),
                 _buildFeaturedSounds(theme, accentColor, isDark),
+              
+              const SizedBox(height: 24),
+              const _HomeBannerAdSlot(),
                 
                 const SizedBox(height: 100), // Bottom padding for nav bar
               ],
@@ -1111,5 +1116,30 @@ class _HomeScreenState extends State<HomeScreen> {
       print('🔧 DEBUG ERROR in _showSleepTimerDialog: $e');
       print('🔧 DEBUG STACK: $stackTrace');
     }
+  }
+}
+
+class _HomeBannerAdSlot extends StatelessWidget {
+  const _HomeBannerAdSlot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AdService>(
+      builder: (_, adService, __) {
+        final banner = adService.homeBannerAd;
+        if (banner == null) {
+          return const SizedBox.shrink();
+        }
+
+        return GlassContainer(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: SizedBox(
+            width: banner.size.width.toDouble(),
+            height: banner.size.height.toDouble(),
+            child: AdWidget(ad: banner),
+          ),
+        );
+      },
+    );
   }
 }

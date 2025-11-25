@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'providers/app_settings_provider.dart';
 import 'services/video_background_service.dart';
 import 'services/storage_service.dart';
+import 'services/ad_service.dart';
 import 'services/audio_service.dart';
 import 'services/app_audio_handler.dart';
 import 'widgets/main_navigation.dart';
@@ -19,6 +20,7 @@ import 'utils/performance_monitor.dart';
 
 late final AudioPlayerService _globalAudioPlayerService;
 late final AudioHandler _globalAudioHandler;
+late final AdService _globalAdService;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +49,8 @@ void main() async {
   // Performance optimized: Initialize video background early for smooth startup
   // Video is hardware-accelerated and muted to minimize battery impact
   unawaited(VideoBackgroundService().initialize());
+  _globalAdService = AdService();
+  await _globalAdService.initialize();
   
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
@@ -57,6 +61,7 @@ void main() async {
   runApp(MyApp(
     audioHandler: _globalAudioHandler,
     audioPlayerService: _globalAudioPlayerService,
+    adService: _globalAdService,
   ));
 }
 
@@ -115,8 +120,14 @@ Future<void> _configureHighRefreshRate() async {
 class MyApp extends StatefulWidget {
   final AudioHandler audioHandler;
   final AudioPlayerService audioPlayerService;
+  final AdService adService;
 
-  const MyApp({super.key, required this.audioHandler, required this.audioPlayerService});
+  const MyApp({
+    super.key,
+    required this.audioHandler,
+    required this.audioPlayerService,
+    required this.adService,
+  });
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -140,6 +151,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     // Performance optimization: Stop monitoring when app is disposed
     PerformanceMonitor().stopMonitoring();
+    widget.adService.dispose();
     super.dispose();
   }
 
@@ -178,6 +190,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       providers: [
         ChangeNotifierProvider(create: (_) => AppSettingsProvider()),
         ChangeNotifierProvider(create: (_) => VideoBackgroundService()),
+        ChangeNotifierProvider<AdService>.value(value: widget.adService),
         ChangeNotifierProxyProvider<AppSettingsProvider, AudioPlayerService>(
           create: (_) => widget.audioPlayerService,
           update: (_, settingsProvider, audioService) {

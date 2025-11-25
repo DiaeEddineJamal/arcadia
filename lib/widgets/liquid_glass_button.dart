@@ -44,9 +44,6 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
   late Animation<double> _hoverAnimation;
   late Animation<double> _playingAnimation;
 
-  bool _isHovered = false;
-  bool _isPressed = false;
-
   @override
   void initState() {
     super.initState();
@@ -117,28 +114,23 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
   }
 
   void _handleTapDown(TapDownDetails details) {
-    setState(() => _isPressed = true);
     _pressController.forward();
     HapticFeedback.lightImpact();
   }
 
   void _handleTapUp(TapUpDetails details) {
-    setState(() => _isPressed = false);
     _pressController.reverse();
   }
 
   void _handleTapCancel() {
-    setState(() => _isPressed = false);
     _pressController.reverse();
   }
 
   void _handleHoverEnter(PointerEnterEvent event) {
-    setState(() => _isHovered = true);
     _hoverController.forward();
   }
 
   void _handleHoverExit(PointerExitEvent event) {
-    setState(() => _isHovered = false);
     _hoverController.reverse();
   }
 

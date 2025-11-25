@@ -1,7 +1,5 @@
 import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart';
-import 'sound.dart';
-
 part 'sound_mix.g.dart';
 
 @HiveType(typeId: 1)

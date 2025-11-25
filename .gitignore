@@ -44,6 +44,13 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Keystore files - NEVER commit these!
+*.jks
+*.keystore
+/android/key.properties
+*.p12
+*.pfx
+
 # Heap dumps and profiling files
 *.hprof
 **/java_pid*.hprof

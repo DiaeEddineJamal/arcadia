@@ -37,6 +37,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-6329609540816457~5418136763" />
         <service
             android:name="com.ryanheise.audioservice.AudioService"
             android:exported="false"
