@@ -42,7 +42,7 @@ class _MainNavigationState extends State<MainNavigation> {
     if (index == 1) {
       context.read<AdService>().maybeShowLibraryInterstitial();
     }
-
+    
     setState(() {
       _currentIndex = index;
     });
