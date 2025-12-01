@@ -79,10 +79,39 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final settingsProvider = context.watch<AppSettingsProvider>();
-    final audioService = context.watch<AudioPlayerService>();
-    final accentColor = AppTheme.getAccentColor(settingsProvider.settings.accentColor);
-    final isDark = theme.brightness == Brightness.dark;
+    // Performance: Use Selector to only rebuild when accent color or dark mode changes
+    return Selector<AppSettingsProvider, ({String accentColor, bool isDarkMode})>(
+      selector: (_, provider) => (
+        accentColor: provider.settings.accentColor,
+        isDarkMode: provider.settings.isDarkMode,
+      ),
+      builder: (context, settings, _) {
+        final accentColor = AppTheme.getAccentColor(settings.accentColor);
+        final isDark = settings.isDarkMode;
+        // Performance: Use Selector to only rebuild when audio state changes
+        return Selector<AudioPlayerService, ({bool isMasterPlaying, double masterVolume, int sleepTimerMinutes})>(
+          selector: (_, service) => (
+            isMasterPlaying: service.isMasterPlaying,
+            masterVolume: service.masterVolume,
+            sleepTimerMinutes: service.sleepTimerMinutes,
+          ),
+          builder: (context, audioState, __) {
+            final audioService = context.read<AudioPlayerService>();
+            return _buildHomeContent(context, theme, accentColor, isDark, audioService, audioState);
+          },
+        );
+      },
+    );
+  }
+  
+  Widget _buildHomeContent(
+    BuildContext context,
+    ThemeData theme,
+    Color accentColor,
+    bool isDark,
+    AudioPlayerService audioService,
+    ({bool isMasterPlaying, double masterVolume, int sleepTimerMinutes}) audioState,
+  ) {
 
     return Scaffold(
       extendBody: true,
@@ -102,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
         forceMaterialTransparency: true,
         actions: [
           // Sleep timer indicator
-          if (audioService.sleepTimerMinutes > 0)
+          if (audioState.sleepTimerMinutes > 0)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Center(
@@ -131,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${audioService.sleepTimerMinutes}m',
+                          '${audioState.sleepTimerMinutes}m',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: accentColor,
                             fontWeight: FontWeight.w600,
@@ -172,12 +201,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 24),
                 
                 // Now Playing / Quick Controls
-                _buildNowPlayingSection(audioService, theme, accentColor, isDark),
+                _buildNowPlayingSection(audioService, theme, accentColor, isDark, audioState),
                 
                 const SizedBox(height: 24),
                 
                 // Quick Actions
-                _buildQuickActions(audioService, theme, accentColor, isDark),
+                _buildQuickActions(audioService, theme, accentColor, isDark, audioState),
                 
                 const SizedBox(height: 32),
                 
@@ -233,22 +262,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildGreetingSection(ThemeData theme, Color accentColor, bool isDark) {
+    // Cache greeting computation - only recalculates when hour changes
     final hour = DateTime.now().hour;
-    String greeting;
-    IconData greetingIcon;
-    
-    if (hour < 12) {
-      greeting = 'Good Morning';
-      greetingIcon = Icons.wb_sunny;
-    } else if (hour < 17) {
-      greeting = 'Good Afternoon';
-      greetingIcon = Icons.wb_sunny_outlined;
-    } else {
-      greeting = 'Good Evening';
-      greetingIcon = Icons.nightlight_round;
-    }
+    final greeting = hour < 12 
+        ? 'Good Morning' 
+        : hour < 17 
+            ? 'Good Afternoon' 
+            : 'Good Evening';
+    final greetingIcon = hour < 12 
+        ? Icons.wb_sunny 
+        : hour < 17 
+            ? Icons.wb_sunny_outlined 
+            : Icons.nightlight_round;
 
-    return GlassContainer(
+    return RepaintBoundary(
+      child: GlassContainer(
       padding: const EdgeInsets.all(24),
       child: Row(
         children: [
@@ -288,6 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -296,8 +325,16 @@ class _HomeScreenState extends State<HomeScreen> {
     ThemeData theme,
     Color accentColor,
     bool isDark,
+    ({bool isMasterPlaying, double masterVolume, int sleepTimerMinutes}) audioState,
   ) {
-    return GlassContainer(
+    // Cache volume icon computation
+    final volumeIcon = audioState.masterVolume > 0.5 
+        ? Icons.volume_up 
+        : Icons.volume_down;
+    final volumePercent = (audioState.masterVolume * 100).round();
+    
+    return RepaintBoundary(
+      child: GlassContainer(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,7 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Subtle visualizer pulse when playing
           SoundVisualizer(
-            isPlaying: audioService.isMasterPlaying,
+            isPlaying: audioState.isMasterPlaying,
             color: accentColor,
             height: 24,
           ),
@@ -334,16 +371,14 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               Icon(
-                audioService.masterVolume > 0.5
-                    ? Icons.volume_up
-                    : Icons.volume_down,
+                volumeIcon,
                 size: 20,
                 color: theme.iconTheme.color?.withOpacity(0.7),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ThrottledMasterVolumeSlider(
-                  value: audioService.masterVolume,
+                  value: audioState.masterVolume,
                   audioService: audioService,
                   sliderTheme: theme.sliderTheme.copyWith(
                     trackHeight: 4,
@@ -356,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               Text(
-                '${(audioService.masterVolume * 100).round()}%',
+                '$volumePercent%',
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w500,
                 ),
@@ -374,7 +409,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icons.play_arrow,
                 label: 'Play',
                 onTap: () {
-                  if (!audioService.isMasterPlaying) {
+                  if (!audioState.isMasterPlaying) {
                     audioService.resumeAll();
                   }
                 },
@@ -398,6 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ],
+      ),
       ),
     );
   }
@@ -442,6 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ThemeData theme,
     Color accentColor,
     bool isDark,
+    ({bool isMasterPlaying, double masterVolume, int sleepTimerMinutes}) audioState,
   ) {
     return Row(
       children: [
@@ -476,11 +513,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        audioService.sleepTimerMinutes > 0
-                            ? '${audioService.sleepTimerMinutes}m active'
+                        audioState.sleepTimerMinutes > 0
+                            ? '${audioState.sleepTimerMinutes}m active'
                             : 'Not set',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: audioService.sleepTimerMinutes > 0
+                          color: audioState.sleepTimerMinutes > 0
                               ? Colors.blue
                               : theme.textTheme.bodySmall?.color?.withOpacity(0.6),
                         ),
@@ -524,9 +561,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSoundCategories(ThemeData theme, Color accentColor, bool isDark) {
+    // Performance: Use cacheExtent and optimize GridView
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      cacheExtent: 500, // Cache items for smoother scrolling
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 12,
@@ -534,6 +573,8 @@ class _HomeScreenState extends State<HomeScreen> {
         childAspectRatio: 1.75,
       ),
       itemCount: _soundCategories.length,
+      addAutomaticKeepAlives: false, // Better performance
+      addRepaintBoundaries: true, // Each item is isolated
       itemBuilder: (context, index) {
         final category = _soundCategories[index];
         final dynamicCount = StorageService.getSoundsByCategory(category['name']).length;

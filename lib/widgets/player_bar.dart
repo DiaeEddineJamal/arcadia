@@ -27,7 +27,7 @@ class _PlayerBarState extends State<PlayerBar> with SingleTickerProviderStateMix
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250), // Optimized for snappier feel
+      duration: const Duration(milliseconds: 200), // Optimized for 120Hz
     );
     // Use easeOutCubic for smoother, more natural feeling animation (like Spotify/Apple Music)
     _expandAnim = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
@@ -125,35 +125,43 @@ class _PlayerBarState extends State<PlayerBar> with SingleTickerProviderStateMix
                       child: Builder(
                         builder: (context) {
                           final monitor = PerformanceMonitor();
+                          final shouldDisableBackdrop = monitor.shouldDisableBackdropFilter;
                           final adaptiveBlur = 20 * monitor.adaptiveBlurQuality;
-                          return BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: adaptiveBlur, sigmaY: adaptiveBlur),
-                            child: GlassContainer(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              child: Column(
-                                children: [
-                                  _buildCollapsedRow(context, audioService, accent, activeSounds.length, playingCount, audioData.isMasterPlaying),
-                                  Flexible(
-                                    child: SizeTransition(
-                                      sizeFactor: _expandAnim,
-                                      axisAlignment: -1.0,
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(top: 12),
-                                        child: _buildMiniMixer(
-                                          context,
-                                          audioService,
-                                          allSounds,
-                                          activeSounds,
-                                          enableScrolling,
-                                          availableMixerHeight,
-                                          accent,
-                                        ),
+                          
+                          final glassContent = GlassContainer(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            child: Column(
+                              children: [
+                                _buildCollapsedRow(context, audioService, accent, activeSounds.length, playingCount, audioData.isMasterPlaying),
+                                Flexible(
+                                  child: SizeTransition(
+                                    sizeFactor: _expandAnim,
+                                    axisAlignment: -1.0,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 12),
+                                      child: _buildMiniMixer(
+                                        context,
+                                        audioService,
+                                        allSounds,
+                                        activeSounds,
+                                        enableScrolling,
+                                        availableMixerHeight,
+                                        accent,
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
+                          );
+                          
+                          if (shouldDisableBackdrop) {
+                            return glassContent;
+                          }
+                          
+                          return BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: adaptiveBlur, sigmaY: adaptiveBlur),
+                            child: glassContent,
                           );
                         },
                       ),
@@ -478,15 +486,20 @@ class _PlayerBarState extends State<PlayerBar> with SingleTickerProviderStateMix
                       addRepaintBoundaries: false,
                       // Use ClampingScrollPhysics for smoother scrolling
                       physics: const ClampingScrollPhysics(),
+                      // Performance: Use itemExtent for better scrolling performance
+                      itemExtent: 72.0, // Fixed height for ListTile improves performance
                       itemBuilder: (context, index) {
                         final s = allSounds[index];
+                        // Cache volume percentage computation
+                        final volumePercent = (s.defaultVolume * 100).round();
                         // Use const where possible to reduce rebuilds
                         return RepaintBoundary(
+                          key: ValueKey('sound_${s.id}'), // Stable keys
                           child: ListTile(
                             leading: const Icon(Icons.music_note),
                             title: Text(s.name),
                             subtitle: Text(s.category),
-                            trailing: Text('${(s.defaultVolume * 100).round()}%'),
+                            trailing: Text('$volumePercent%'),
                             onTap: () {
                               // Optimize: Non-blocking sound initialization for smooth modal dismiss
                               // Dismiss modal immediately for instant feedback

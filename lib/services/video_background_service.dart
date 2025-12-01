@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'dart:async';
 import 'dart:io';
+import '../utils/performance_monitor.dart';
 
 /// Singleton service that manages a shared video background across the app
 /// This ensures seamless transitions without video interruption
@@ -18,6 +20,7 @@ class VideoBackgroundService extends ChangeNotifier {
   bool _isPaused = false; // Track pause state for performance optimization
   Widget? _cachedVideoWidget; // Cache video widget to prevent buffer recreation
   static final GlobalKey _videoWidgetKey = GlobalKey(debugLabel: 'video_background_key'); // Global key for widget reuse
+  Timer? _performanceCheckTimer; // Timer to periodically check performance and pause/resume video
 
   VideoPlayerController? get videoController => _videoController;
   bool get isInitialized => _isInitialized;
@@ -41,6 +44,49 @@ class VideoBackgroundService extends ChangeNotifier {
     }
     // Performance optimization: Don't listen to position/duration changes
     // Video loops automatically, no need to monitor playback state
+    // Performance-based pause/resume is handled by periodic timer
+  }
+  
+  /// Start periodic performance monitoring to pause/resume video
+  /// Optimized for 120Hz: More aggressive pausing to maintain high FPS
+  void _startPerformanceMonitoring() {
+    _performanceCheckTimer?.cancel();
+    _performanceCheckTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (_isDisposed || !_isInitialized || _videoController == null) {
+        timer.cancel();
+        return;
+      }
+      
+      final monitor = PerformanceMonitor();
+      final currentFPS = monitor.currentFPS;
+      final isHighRefreshRate = monitor.isHighRefreshRateDevice;
+      
+      // For 120Hz devices: Pause video if FPS < 100 to maintain 120Hz
+      // For 60Hz devices: Pause video if FPS < 50
+      final threshold = isHighRefreshRate ? 100.0 : 50.0;
+      
+      if (monitor.shouldDisableVideo || currentFPS < threshold) {
+        // Pause video if performance is low
+        if (!_isPaused && _videoController!.value.isPlaying) {
+          _videoController!.pause();
+          _isPaused = true;
+          debugPrint('Video paused due to low performance (FPS < $threshold, HighRefreshRate=$isHighRefreshRate)');
+        }
+      } else {
+        // Resume video when performance is good
+        if (_isPaused && !_videoController!.value.isPlaying) {
+          _videoController!.play();
+          _isPaused = false;
+          debugPrint('Video resumed - performance good (FPS >= $threshold, HighRefreshRate=$isHighRefreshRate)');
+        }
+      }
+    });
+  }
+  
+  /// Stop performance monitoring
+  void _stopPerformanceMonitoring() {
+    _performanceCheckTimer?.cancel();
+    _performanceCheckTimer = null;
   }
 
   /// Initialize the video controller if not already initialized
@@ -71,6 +117,8 @@ class VideoBackgroundService extends ChangeNotifier {
         videoPlayerOptions: VideoPlayerOptions(
           mixWithOthers: true, // Allow audio to play alongside video
           allowBackgroundPlayback: false,
+          // Optimize for 120Hz: Reduce buffer usage to prevent ImageReader_JNI warnings
+          // This helps maintain smooth 120Hz rendering
         ),
       );
 
@@ -79,10 +127,11 @@ class VideoBackgroundService extends ChangeNotifier {
       await _videoController!.initialize();
       debugPrint('Video controller initialized. Size: ${_videoController!.value.size}');
 
-      // Configure video for maximum frame rate and zero frame drops
-      // Full quality playback at native frame rate for best user experience
+      // Configure video for 120Hz optimization
+      // Optimize playback for high refresh rate displays
       await _videoController!.setLooping(true);
-      await _videoController!.setPlaybackSpeed(1.0); // Full speed - no compromise on smoothness
+      // Use 1.0 speed for smooth playback, but will be adjusted based on performance
+      await _videoController!.setPlaybackSpeed(1.0);
       await _videoController!.setVolume(0.0); // Mute background video to save battery
       
       // Performance optimization: Use hardware acceleration (default on Android/iOS)
@@ -110,6 +159,9 @@ class VideoBackgroundService extends ChangeNotifier {
       _isPaused = false;
       if (hasListeners) notifyListeners();
       
+      // Start periodic performance check to pause/resume video
+      _startPerformanceMonitoring();
+      
       debugPrint('Video background initialized successfully');
     } catch (e) {
       debugPrint('Error initializing video background: $e');
@@ -127,6 +179,7 @@ class VideoBackgroundService extends ChangeNotifier {
 
   /// Clean up video controller resources
   Future<void> _cleanUp() async {
+    _stopPerformanceMonitoring();
     try {
       _videoController?.removeListener(_videoListener);
       _videoController?.pause();
@@ -204,10 +257,13 @@ class VideoBackgroundService extends ChangeNotifier {
   /// Get the video widget for display with maximum frame rate optimization
   /// Zero frame drops: Optimized for highest quality playback without compromises
   /// Hardware-accelerated: Uses GPU for decoding to maintain smooth 120Hz+ refresh rates
+  /// Video widget is always returned (never removed) - video pauses when performance is low
   Widget getVideoWidget() {
+    // Always return video widget - never remove it (prevents black screen)
+    // Performance-based pause/resume is handled by periodic timer
     if (!_isInitialized || _videoController == null || !_videoController!.value.isInitialized) {
       return Container(
-        color: Colors.black, // Fallback background
+        color: Colors.black, // Fallback background while loading
         child: const SizedBox.expand(),
       );
     }

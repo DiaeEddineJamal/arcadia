@@ -79,9 +79,25 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    final settingsProvider = context.watch<AppSettingsProvider>();
-    final accentColor = AppTheme.getAccentColor(settingsProvider.settings.accentColor);
-    final isDark = settingsProvider.settings.isDarkMode;
+    // Performance: Use Selector to only rebuild when accent color or dark mode changes
+    return Selector<AppSettingsProvider, ({String accentColor, bool isDarkMode})>(
+      selector: (_, provider) => (
+        accentColor: provider.settings.accentColor,
+        isDarkMode: provider.settings.isDarkMode,
+      ),
+      builder: (context, settings, _) {
+        final accentColor = AppTheme.getAccentColor(settings.accentColor);
+        final isDark = settings.isDarkMode;
+        return _buildNavigationContent(context, accentColor, isDark);
+      },
+    );
+  }
+  
+  Widget _buildNavigationContent(
+    BuildContext context,
+    Color accentColor,
+    bool isDark,
+  ) {
 
     return Scaffold(
       extendBody: true,
@@ -89,11 +105,19 @@ class _MainNavigationState extends State<MainNavigation> {
       body: Stack(
         children: [
           RepaintBoundary(
-            child: SharedVideoBackground(
-              isDark: isDark,
-              accentColor: accentColor,
-              enableGrainOverlay: settingsProvider.settings.enableGrainOverlay,
-              grainIntensity: settingsProvider.settings.grainIntensity,
+            child: Selector<AppSettingsProvider, ({bool enableGrainOverlay, double grainIntensity})>(
+              selector: (_, provider) => (
+                enableGrainOverlay: provider.settings.enableGrainOverlay,
+                grainIntensity: provider.settings.grainIntensity,
+              ),
+              builder: (context, grainSettings, _) {
+                return SharedVideoBackground(
+                  isDark: isDark,
+                  accentColor: accentColor,
+                  enableGrainOverlay: grainSettings.enableGrainOverlay,
+                  grainIntensity: grainSettings.grainIntensity,
+                );
+              },
             ),
           ),
           // The actual screen content wrapped in RepaintBoundary
@@ -108,7 +132,7 @@ class _MainNavigationState extends State<MainNavigation> {
               bottom: 0,
               child: RepaintBoundary(
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200), // Reduced from 300ms
+                  duration: const Duration(milliseconds: 150), // Optimized for 120Hz
                   transitionBuilder: (child, animation) {
                     return SlideTransition(
                       position: Tween<Offset>(

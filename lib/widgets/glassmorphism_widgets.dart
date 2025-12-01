@@ -42,9 +42,10 @@ class GlassContainer extends StatelessWidget {
     // Performance optimization: Use adaptive blur quality based on performance metrics
     final monitor = PerformanceMonitor();
     final adaptiveBlur = blur * monitor.adaptiveBlurQuality;
+    final shouldDisableBackdrop = monitor.shouldDisableBackdropFilter;
 
     // Build the glassmorphic effect using native Flutter widgets instead of the problematic package
-    return Container(
+    final container = Container(
       width: width,
       height: height,
       margin: margin,
@@ -65,7 +66,7 @@ class GlassContainer extends StatelessWidget {
         boxShadow: boxShadow ?? [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10 * monitor.adaptiveBlurQuality,
+            blurRadius: shouldDisableBackdrop ? 5 : (10 * monitor.adaptiveBlurQuality),
             spreadRadius: 0,
             offset: const Offset(0, 4),
           ),
@@ -73,25 +74,35 @@ class GlassContainer extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: borderRadius ?? BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: adaptiveBlur, sigmaY: adaptiveBlur),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withValues(alpha: isDark ? 0.1 : 0.2),
-                  Colors.white.withValues(alpha: isDark ? 0.05 : 0.1),
-                ],
-              ),
-            ),
-            child: Padding(
-              padding: padding ?? EdgeInsets.zero,
-              child: child,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: isDark ? 0.1 : 0.2),
+                Colors.white.withValues(alpha: isDark ? 0.05 : 0.1),
+              ],
             ),
           ),
+          child: Padding(
+            padding: padding ?? EdgeInsets.zero,
+            child: child,
+          ),
         ),
+      ),
+    );
+    
+    // Only apply BackdropFilter if performance allows
+    if (shouldDisableBackdrop) {
+      return container;
+    }
+    
+    return ClipRRect(
+      borderRadius: borderRadius ?? BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: adaptiveBlur, sigmaY: adaptiveBlur),
+        child: container,
       ),
     );
   }
@@ -295,28 +306,36 @@ class _GlassCardState extends State<GlassCard>
                           child: Builder(
                             builder: (context) {
                               final monitor = PerformanceMonitor();
+                              final shouldDisableBackdrop = monitor.shouldDisableBackdropFilter;
                               final baseBlur = (10 + (hoverValue * 5)) * monitor.adaptiveBlurQuality;
+                              
+                              final content = Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color.fromRGBO(255, 255, 255, 0.1 + (hoverValue * 0.05)),
+                                      Color.fromRGBO(255, 255, 255, 0.05 + (hoverValue * 0.03)),
+                                    ],
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: widget.padding ?? const EdgeInsets.all(16),
+                                  child: widget.child,
+                                ),
+                              );
+                              
+                              if (shouldDisableBackdrop) {
+                                return content;
+                              }
+                              
                               return BackdropFilter(
                                 filter: ImageFilter.blur(
                                   sigmaX: baseBlur,
                                   sigmaY: baseBlur,
                                 ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Color.fromRGBO(255, 255, 255, 0.1 + (hoverValue * 0.05)),
-                                        Color.fromRGBO(255, 255, 255, 0.05 + (hoverValue * 0.03)),
-                                      ],
-                                    ),
-                                  ),
-                                  child: Padding(
-                                    padding: widget.padding ?? const EdgeInsets.all(16),
-                                    child: widget.child,
-                                  ),
-                                ),
+                                child: content,
                               );
                             },
                           ),
@@ -557,10 +576,10 @@ class _GlassSliderState extends State<GlassSlider> {
                 child: Builder(
                   builder: (context) {
                     final monitor = PerformanceMonitor();
+                    final shouldDisableBackdrop = monitor.shouldDisableBackdropFilter;
                     final adaptiveBlur = 5 * monitor.adaptiveBlurQuality;
-                    return BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: adaptiveBlur, sigmaY: adaptiveBlur),
-                      child: SliderTheme(
+                    
+                    final sliderContent = SliderTheme(
                     data: theme.sliderTheme.copyWith(
                       activeTrackColor: accent,
                       inactiveTrackColor: isDark
@@ -580,7 +599,15 @@ class _GlassSliderState extends State<GlassSlider> {
                       min: widget.min,
                       max: widget.max,
                     ),
-                      ),
+                      );
+                    
+                    if (shouldDisableBackdrop) {
+                      return sliderContent;
+                    }
+                    
+                    return BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: adaptiveBlur, sigmaY: adaptiveBlur),
+                      child: sliderContent,
                     );
                   },
                 ),
@@ -768,6 +795,12 @@ class _GlassButtonState extends State<GlassButton> {
                     return content;
                   }
                   final monitor = PerformanceMonitor();
+                  final shouldDisableBackdrop = monitor.shouldDisableBackdropFilter;
+                  
+                  if (shouldDisableBackdrop) {
+                    return content;
+                  }
+                  
                   final adaptiveBlur = 8 * monitor.adaptiveBlurQuality;
                   return BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: adaptiveBlur, sigmaY: adaptiveBlur),

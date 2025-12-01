@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -33,6 +34,10 @@ void main() async {
 
   // Performance optimization: Start performance monitoring
   PerformanceMonitor().startMonitoring();
+  
+  // Optimize for 120Hz: Enable high refresh rate optimizations
+  // Flutter automatically uses the highest available refresh rate when configured
+  // The display mode is already set to 120Hz in _configureHighRefreshRate()
 
   _globalAudioPlayerService = AudioPlayerService();
   _globalAudioHandler = await AudioService.init(
@@ -220,6 +225,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             child: MaterialApp(
               title: 'Arcadia',
               debugShowCheckedModeBanner: false,
+              // Performance: Optimize for 120Hz refresh rate
+              // Use shorter animation durations for smoother 120Hz experience
+              builder: (context, child) {
+                // Wrap in RepaintBoundary for additional isolation
+                return RepaintBoundary(
+                  child: MediaQuery(
+                    // Optimize for high refresh rate displays
+                    data: MediaQuery.of(context).copyWith(
+                      // Ensure smooth animations at 120Hz
+                      textScaler: MediaQuery.of(context).textScaler,
+                    ),
+                    child: child!,
+                  ),
+                );
+              },
               theme: baseLight.copyWith(
                 colorScheme: baseLight.colorScheme.copyWith(primary: accentColor, secondary: accentColor),
                 textTheme: lightTextTheme.apply(

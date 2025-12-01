@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/sound.dart';
 import '../models/sound_mix.dart';
 import '../models/app_settings.dart';
+import '../utils/performance_monitor.dart';
 
 // Performance optimization: Track initialization queue to prevent concurrent initialization
 final _initializationQueue = <String>{};
@@ -63,13 +64,18 @@ class AudioPlayerService extends ChangeNotifier {
 
   // Performance optimization: Aggressive debouncing for smooth UI with multiple sounds
   // Uses microtask batching to reduce rebuilds by 80-90%
+  // Increased debounce to 300ms for low-end devices
   void _scheduleNotification() {
     if (_hasScheduledNotification) return;
     
     _hasScheduledNotification = true;
     _notificationTimer?.cancel();
-    // Increased debounce to 200ms for smoother performance with 3+ sounds
-    _notificationTimer = Timer(const Duration(milliseconds: 200), () {
+    
+    // Adaptive debounce: longer delay on low-end devices
+    final monitor = PerformanceMonitor();
+    final debounceMs = monitor.isLowEndDevice ? 300 : 200;
+    
+    _notificationTimer = Timer(Duration(milliseconds: debounceMs), () {
       _hasScheduledNotification = false;
       // Use microtask to batch with other state changes
       scheduleMicrotask(() => notifyListeners());

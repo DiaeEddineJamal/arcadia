@@ -14,22 +14,47 @@ class PerformanceMonitor {
   Timer? _fpsTimer;
   final List<double> _fpsHistory = [];
   static const int maxHistorySize = 60; // Keep last 60 seconds of FPS data
+  bool _hasLoggedWaiting = false; // Track if we've logged the waiting message
 
   bool _isMonitoring = false;
   double _adaptiveBlurQuality = 1.0; // 1.0 = full quality, 0.5 = reduced quality
   void Function(List<FrameTiming>)? _frameTimingsCallback;
+  bool _isLowEndDevice = false;
+  bool _shouldDisableBackdropFilter = false;
+  bool _shouldDisableVideo = false;
+  bool _isHighRefreshRateDevice = false; // Track if device supports 120Hz+
 
   /// Get current adaptive blur quality (reduced during performance issues)
   double get adaptiveBlurQuality => _adaptiveBlurQuality;
+  
+  /// Check if device is low-end and should use reduced effects
+  bool get isLowEndDevice => _isLowEndDevice;
+  
+  /// Check if BackdropFilter should be disabled for performance
+  bool get shouldDisableBackdropFilter => _shouldDisableBackdropFilter;
+  
+  /// Check if video background should be disabled for performance
+  bool get shouldDisableVideo => _shouldDisableVideo;
+  
+  /// Check if device supports high refresh rate (120Hz+)
+  bool get isHighRefreshRateDevice => _isHighRefreshRateDevice;
 
   /// Start monitoring performance
   void startMonitoring() {
     if (_isMonitoring) return;
     _isMonitoring = true;
+    
+    if (kDebugMode) {
+      print('PerformanceMonitor: Starting performance monitoring...');
+    }
+    
+    // Detect low-end device on startup
+    _detectDeviceCapability();
 
     _fpsTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       _updateFPS();
       _updateAdaptiveQuality();
+      _updateDeviceCapability();
     });
 
     // Monitor frame performance
@@ -55,56 +80,142 @@ class PerformanceMonitor {
   }
 
   void _onFrameTimings(List<FrameTiming> timings) {
+    if (!_isMonitoring) return;
+    
     _frameCount += timings.length;
-    _lastFrameTime = DateTime.now();
+    
+    // Initialize _lastFrameTime on first frame
+    if (_lastFrameTime == null) {
+      _lastFrameTime = DateTime.now();
+      if (kDebugMode) {
+        print('PerformanceMonitor: First frame received');
+      }
+    }
   }
 
   void _updateFPS() {
+    // Initialize _lastFrameTime if we haven't received any frames yet
     if (_lastFrameTime == null) {
       _currentFPS = 0.0;
+      // Only log once when waiting for first frame
+      if (kDebugMode && !_hasLoggedWaiting) {
+        print('PerformanceMonitor: Waiting for first frame...');
+        _hasLoggedWaiting = true;
+      }
       return;
     }
 
     final now = DateTime.now();
     final elapsed = now.difference(_lastFrameTime!);
     
-    if (elapsed.inSeconds > 0) {
-      _currentFPS = _frameCount / elapsed.inSeconds;
+    // Update FPS every second (1000ms)
+    if (elapsed.inMilliseconds >= 1000) {
+      if (_frameCount > 0) {
+        _currentFPS = _frameCount / (elapsed.inMilliseconds / 1000.0);
+      } else {
+        // No frames in this period
+        _currentFPS = 0.0;
+      }
+      
+      // Keep history for analysis (only if we got valid FPS)
+      if (_currentFPS > 0) {
+        _fpsHistory.add(_currentFPS);
+        if (_fpsHistory.length > maxHistorySize) {
+          _fpsHistory.removeAt(0);
+        }
+        
+        // Log first few FPS readings to verify it's working
+        if (kDebugMode && _fpsHistory.length <= 3) {
+          print('PerformanceMonitor: FPS reading #${_fpsHistory.length}: ${_currentFPS.toStringAsFixed(1)} FPS');
+        }
+      }
+      
+      // Reset for next period
       _frameCount = 0;
       _lastFrameTime = now;
+    }
+  }
 
-      // Keep history for analysis
-      _fpsHistory.add(_currentFPS);
-      if (_fpsHistory.length > maxHistorySize) {
-        _fpsHistory.removeAt(0);
-      }
+  void _detectDeviceCapability() {
+    // Start with optimizations enabled for better initial performance
+    // Will adjust based on actual FPS measurements
+    _isLowEndDevice = false;
+    // BackdropFilter is always enabled (user preference)
+    _shouldDisableBackdropFilter = false;
+    _shouldDisableVideo = false;
+    // Start with optimized blur quality for 120Hz targeting
+    _adaptiveBlurQuality = 0.6;
+    
+    if (kDebugMode) {
+      print('PerformanceMonitor: Initialized - BlurQuality=${(_adaptiveBlurQuality * 100).toStringAsFixed(0)}%');
+    }
+  }
+  
+  void _updateDeviceCapability() {
+    if (_fpsHistory.isEmpty) {
+      // Keep initial settings until we have data
+      // Don't spam logs - only log once
+      return;
+    }
+    
+    final recentFPS = _fpsHistory.length >= 5
+        ? _fpsHistory.sublist(_fpsHistory.length - 5).reduce((a, b) => a + b) / 5
+        : _currentFPS;
+    
+    // Optimized thresholds for 120Hz targeting
+    // Mark as low-end if consistently below 60 FPS (was 50)
+    _isLowEndDevice = recentFPS < 60;
+    
+    // Detect high refresh rate device (120Hz+) if FPS can reach 90+
+    // This helps optimize specifically for flagship devices
+    _isHighRefreshRateDevice = recentFPS >= 90 || _isHighRefreshRateDevice;
+    
+    // BackdropFilter is always enabled (user preference)
+    // We only adjust blur quality, not disable the effect
+    _shouldDisableBackdropFilter = false;
+    
+    // For 120Hz devices: Pause video if FPS drops below 100 to maintain 120Hz
+    // For 60Hz devices: Pause video if FPS drops below 50
+    // This allows video to pause earlier to maintain higher FPS on high-end devices
+    if (_isHighRefreshRateDevice) {
+      _shouldDisableVideo = recentFPS < 100; // More aggressive for 120Hz devices
+    } else {
+      _shouldDisableVideo = recentFPS < 50; // Standard threshold for 60Hz devices
+    }
+    
+    // Log performance metrics every 3 seconds (more frequent for debugging)
+    if (kDebugMode && _fpsHistory.length % 3 == 0) {
+      print('PerformanceMonitor: FPS=${recentFPS.toStringAsFixed(1)}, LowEnd=$_isLowEndDevice, HighRefreshRate=$_isHighRefreshRateDevice, NoBackdrop=$_shouldDisableBackdropFilter, NoVideo=$_shouldDisableVideo, BlurQuality=${(_adaptiveBlurQuality * 100).toStringAsFixed(0)}%');
     }
   }
 
   void _updateAdaptiveQuality() {
-    if (_fpsHistory.isEmpty) return;
+    if (_fpsHistory.isEmpty) {
+      // Start with reduced quality until we have performance data
+      _adaptiveBlurQuality = 0.7;
+      return;
+    }
 
     // Calculate average FPS over last 5 seconds
     final recentFPS = _fpsHistory.length >= 5
         ? _fpsHistory.sublist(_fpsHistory.length - 5).reduce((a, b) => a + b) / 5
         : _currentFPS;
 
-    // Adjust blur quality based on FPS
-    // Below 30 FPS: reduce quality significantly
-    // Below 50 FPS: reduce quality moderately
-    // Above 55 FPS: full quality
+    // Optimized for 120Hz: More aggressive blur reduction to achieve 120 FPS
+    // Target 120 FPS on high-end devices, maintain 60 FPS on mid-range
     if (recentFPS < 30) {
-      _adaptiveBlurQuality = 0.4; // Heavy reduction for poor performance
+      _adaptiveBlurQuality = 0.15; // Heavy reduction for poor performance
     } else if (recentFPS < 45) {
-      _adaptiveBlurQuality = 0.6; // Moderate reduction
-    } else if (recentFPS < 55) {
-      _adaptiveBlurQuality = 0.8; // Light reduction
+      _adaptiveBlurQuality = 0.25; // Moderate reduction
+    } else if (recentFPS < 60) {
+      _adaptiveBlurQuality = 0.4; // Light reduction to reach 60 FPS
+    } else if (recentFPS < 90) {
+      _adaptiveBlurQuality = 0.5; // Medium reduction to reach 90 FPS
+    } else if (recentFPS < 110) {
+      _adaptiveBlurQuality = 0.6; // Light reduction to reach 110 FPS
     } else {
-      _adaptiveBlurQuality = 1.0; // Full quality
-    }
-
-    if (kDebugMode && _fpsHistory.length % 10 == 0) {
-      print('PerformanceMonitor: FPS=$recentFPS, Quality=${(_adaptiveBlurQuality * 100).toStringAsFixed(0)}%');
+      // At 110+ FPS, still reduce blur by 40% to maintain 120 FPS consistently
+      _adaptiveBlurQuality = 0.6; // Optimized for 120Hz devices
     }
   }
 
@@ -177,6 +288,9 @@ class PerformanceMonitor {
     _currentFPS = 0.0;
     _fpsHistory.clear();
     _adaptiveBlurQuality = 1.0;
+    _isLowEndDevice = false;
+    _shouldDisableBackdropFilter = false;
+    _shouldDisableVideo = false;
   }
 }
 

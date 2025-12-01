@@ -120,7 +120,23 @@ class SoundLibraryScreenState extends State<SoundLibraryScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = theme.colorScheme.secondary;
-    final audioService = context.watch<AudioPlayerService>();
+    // Performance: Use Selector to only rebuild when playing states change
+    return Selector<AudioPlayerService, Map<String, bool>>(
+      selector: (_, service) => service.playingStates,
+      builder: (context, playingStates, _) {
+        final audioService = context.read<AudioPlayerService>();
+        return _buildLibraryContent(context, theme, accent, audioService, playingStates);
+      },
+    );
+  }
+  
+  Widget _buildLibraryContent(
+    BuildContext context,
+    ThemeData theme,
+    Color accent,
+    AudioPlayerService audioService,
+    Map<String, bool> playingStates,
+  ) {
 
     final sounds = StorageService.getAllSounds();
     final categories = _deriveCategories(sounds);
@@ -164,7 +180,7 @@ class SoundLibraryScreenState extends State<SoundLibraryScreen> {
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 240),
-              sliver: _buildSliverGrid(theme, accent, audioService, visible, categoryIcons),
+              sliver: _buildSliverGrid(theme, accent, audioService, visible, categoryIcons, playingStates),
             ),
           ],
         ),
@@ -252,7 +268,9 @@ class SoundLibraryScreenState extends State<SoundLibraryScreen> {
     AudioPlayerService audioService,
     List<Sound> visible,
     Map<String, IconData> categoryIcons,
+    Map<String, bool> playingStates,
   ) {
+    // Performance: Optimize SliverGrid with better delegate settings
     return SliverGrid(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -263,11 +281,18 @@ class SoundLibraryScreenState extends State<SoundLibraryScreen> {
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           final sound = visible[index];
-          final isPlaying = audioService.playingStates[sound.id] ?? false;
+          final isPlaying = playingStates[sound.id] ?? false;
           final catAccent = _categoryAccent(sound.category);
           final iconData = categoryIcons[sound.category] ?? Icons.music_note;
           
+          // Cache expensive computations
+          final gradientColors = [
+            catAccent.withOpacity(0.25),
+            catAccent.withOpacity(0.12),
+          ];
+          
           return RepaintBoundary(
+            key: ValueKey('sound_${sound.id}'), // Stable keys for better performance
             child: GlassCard(
           isSelected: isPlaying,
           accentColor: catAccent,
@@ -287,10 +312,7 @@ class SoundLibraryScreenState extends State<SoundLibraryScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
-                    colors: [
-                      catAccent.withOpacity(0.25),
-                      catAccent.withOpacity(0.12),
-                    ],
+                    colors: gradientColors,
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),

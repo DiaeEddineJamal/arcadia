@@ -48,9 +48,30 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final settingsProvider = context.watch<AppSettingsProvider>();
-    final accentColor = AppTheme.getAccentColor(settingsProvider.settings.accentColor);
-    final audioService = context.read<AudioPlayerService>();
+    // Performance: Use Selector to only rebuild when settings change
+    // Include masterVolume so the slider updates when changed
+    return Selector<AppSettingsProvider, ({String accentColor, bool isDarkMode, double masterVolume})>(
+      selector: (_, provider) => (
+        accentColor: provider.settings.accentColor,
+        isDarkMode: provider.settings.isDarkMode,
+        masterVolume: provider.settings.masterVolume,
+      ),
+      builder: (context, settings, _) {
+        final settingsProvider = context.read<AppSettingsProvider>();
+        final accentColor = AppTheme.getAccentColor(settings.accentColor);
+        final audioService = context.read<AudioPlayerService>();
+        return _buildSettingsContent(context, theme, settingsProvider, accentColor, audioService);
+      },
+    );
+  }
+  
+  Widget _buildSettingsContent(
+    BuildContext context,
+    ThemeData theme,
+    AppSettingsProvider settingsProvider,
+    Color accentColor,
+    AudioPlayerService audioService,
+  ) {
     
     return Scaffold(
       backgroundColor: Colors.transparent,
