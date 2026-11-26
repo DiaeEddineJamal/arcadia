@@ -1,0 +1,172 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+/**
+ * This is the configuration block to customize your React Native Android app.
+ * By default you don't need to apply any configuration, just uncomment the lines you need.
+ */
+react {
+    /* Folders */
+    //   The root of your project, i.e. where "package.json" lives. Default is '../..'
+    // root = file("../../")
+    //   The folder where the react-native NPM package is. Default is ../../node_modules/react-native
+    // reactNativeDir = file("../../node_modules/react-native")
+    //   The folder where the react-native Codegen package is. Default is ../../node_modules/@react-native/codegen
+    // codegenDir = file("../../node_modules/@react-native/codegen")
+    //   The cli.js file which is the React Native CLI entrypoint. Default is ../../node_modules/react-native/cli.js
+    // cliFile = file("../../node_modules/react-native/cli.js")
+
+    /* Variants */
+    //   The list of variants to that are debuggable. For those we're going to
+    //   skip the bundling of the JS bundle and the assets. Default is "debug", "debugOptimized".
+    //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
+    // debuggableVariants = ["liteDebug", "liteDebugOptimized", "prodDebug", "prodDebugOptimized"]
+
+    /* Bundling */
+    //   A list containing the node command and its flags. Default is just 'node'.
+    // nodeExecutableAndArgs = ["node"]
+    //
+    //   The command to run when bundling. By default is 'bundle'
+    // bundleCommand = "ram-bundle"
+    //
+    //   The path to the CLI configuration file. Default is empty.
+    // bundleConfig = file(../rn-cli.config.js)
+    //
+    //   The name of the generated asset file containing your JS bundle
+    // bundleAssetName = "MyApplication.android.bundle"
+    //
+    //   The entry file for bundle generation. Default is 'index.android.js' or 'index.js'
+    // entryFile = file("../js/MyApplication.android.js")
+    //
+    //   A list of extra flags to pass to the 'bundle' commands.
+    //   See https://github.com/react-native-community/cli/blob/main/docs/commands.md#bundle
+    // extraPackagerArgs = []
+
+    /* Hermes Commands */
+    //   The hermes compiler command to run. By default it is 'hermesc'
+    // hermesCommand = "$rootDir/my-custom-hermesc/bin/hermesc"
+    //
+    //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
+    // hermesFlags = ["-O", "-output-source-map"]
+
+    /* Autolinking */
+    autolinkLibrariesWithApp()
+}
+
+/**
+ * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ */
+def enableProguardInReleaseBuilds = false
+
+/**
+ * The preferred build flavor of JavaScriptCore (JSC)
+ *
+ * For example, to use the international variant, you can use:
+ * `def jscFlavor = io.github.react-native-community:jsc-android-intl:2026004.+`
+ *
+ * The international variant includes ICU i18n library and necessary data
+ * allowing to use e.g. `Date.toLocaleString` and `String.localeCompare` that
+ * give correct results when using with locales other than en-US. Note that
+ * this variant is about 6MiB larger per architecture than default.
+ */
+def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
+
+/**
+ * Release signing: the existing Google Play upload keystore (the one the Flutter build used)
+ * through key.properties (keyAlias, keyPassword, storeFile, storePassword). Looked up, in order:
+ *   1. -ParcadiaKeyProperties=<path> or the ARCADIA_KEY_PROPERTIES environment variable
+ *   2. android/key.properties
+ * Secrets are never stored in this repository.
+ */
+def uploadKeystorePropertiesFile = [
+        project.findProperty("arcadiaKeyProperties"),
+        System.getenv("ARCADIA_KEY_PROPERTIES"),
+        "${rootDir}/key.properties",
+].findAll { it }.collect { new File(it.toString()) }.find { it.exists() }
+
+def uploadKeystoreProperties = null
+if (uploadKeystorePropertiesFile != null) {
+    uploadKeystoreProperties = new Properties()
+    uploadKeystorePropertiesFile.withInputStream { uploadKeystoreProperties.load(it) }
+}
+
+def resolveUploadStoreFile = { String path ->
+    def f = new File(path)
+    if (f.isAbsolute()) return f
+    // Relative paths: next to key.properties, or inside its app/ module (Flutter convention).
+    def dir = uploadKeystorePropertiesFile.parentFile
+    def candidates = [new File(dir, path), new File(dir, "app/" + path)]
+    return candidates.find { it.exists() } ?: candidates[0]
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def wantsRelease = graph.allTasks.any { it.project == project && it.name in ["bundleRelease", "assembleRelease", "packageRelease", "packageReleaseBundle"] }
+    if (wantsRelease && uploadKeystoreProperties == null) {
+        throw new GradleException("Release builds must be signed with the Arcadia upload key: key.properties not found. " +
+                "Place it at android/key.properties, or pass -ParcadiaKeyProperties=<path>.")
+    }
+}
+
+android {
+    ndkVersion rootProject.ext.ndkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+
+    namespace "com.Luziv.arcadia"
+    defaultConfig {
+        applicationId "com.Luziv.arcadia"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 2
+        versionName "1.0.2"
+    }
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        if (uploadKeystoreProperties != null) {
+            release {
+                storeFile resolveUploadStoreFile(uploadKeystoreProperties.getProperty("storeFile"))
+                storePassword uploadKeystoreProperties.getProperty("storePassword")
+                keyAlias uploadKeystoreProperties.getProperty("keyAlias")
+                keyPassword uploadKeystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+    sourceSets {
+        main {
+            // Ambient sounds (played by the native mixer from asset:///sounds/...) and custom fonts.
+            assets.srcDirs += ["../../assets/native"]
+        }
+    }
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            // Signed with the existing Google Play upload key (same keystore as the Flutter app).
+            signingConfig uploadKeystoreProperties != null ? signingConfigs.release : null
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+}
+
+dependencies {
+    // The version of react-native is set by the React Native Gradle Plugin
+    implementation("com.facebook.react:react-android")
+
+    // Native ambient mixer (ExoPlayer per sound + MediaSession for background playback controls).
+    implementation("androidx.media3:media3-exoplayer:${rootProject.ext.media3Version}")
+    implementation("androidx.media3:media3-session:${rootProject.ext.media3Version}")
+
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
+    }
+}

@@ -1,0 +1,31 @@
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt
+index 75e2307..7218530 100644
+--- a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt
+@@ -37,7 +37,11 @@ class ExoPlayerView @JvmOverloads constructor(context: Context, attrs: Attribute
+         visibility = View.GONE
+     }
+ 
+-    private val playerView = PlayerView(context).apply {
++    // Arcadia patch: always a TextureView (viewType is otherwise ignored; updateSurfaceView is a TODO).
++    private val playerView = (
++        android.view.LayoutInflater.from(context)
++            .inflate(com.brentvatne.react.R.layout.rnv_texture_player_view, this, false) as PlayerView
++        ).apply {
+         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+         setShutterBackgroundColor(Color.TRANSPARENT)
+         useController = true
+diff --git a/node_modules/react-native-video/android/src/main/res/layout/rnv_texture_player_view.xml b/node_modules/react-native-video/android/src/main/res/layout/rnv_texture_player_view.xml
+new file mode 100644
+index 0000000..62feacf
+--- /dev/null
++++ b/node_modules/react-native-video/android/src/main/res/layout/rnv_texture_player_view.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Arcadia patch: PlayerView's surface type can only be set from XML. A TextureView lets the
++     app blur, fade, clip and sample the video like any other view. -->
++<androidx.media3.ui.PlayerView xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    android:layout_width="match_parent"
++    android:layout_height="match_parent"
++    app:surface_type="texture_view" />

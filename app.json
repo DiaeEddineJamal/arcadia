@@ -1,0 +1,8 @@
+{
+  "name": "Arcadia",
+  "displayName": "Arcadia",
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-6329609540816457~5418136763",
+    "ios_app_id": "ca-app-pub-6329609540816457~5418136763"
+  }
+}

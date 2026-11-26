@@ -1,63 +1,87 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
+# OSX
+#
 .DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
 
-# IntelliJ related
+# Xcode
+#
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+**/.xcode.env.local
+
+# Android/IntelliJ
+#
+build/
+.idea
+.gradle
+local.properties
 *.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# Keystore files - NEVER commit these!
-*.jks
-*.keystore
-/android/key.properties
-*.p12
-*.pfx
-
-# Heap dumps and profiling files
 *.hprof
-**/java_pid*.hprof
+.cxx/
+*.keystore
+!debug.keystore
+# Release signing secrets (upload keystore + key.properties) — never commit
+*.jks
+key.properties
+.kotlin/
 
-# Large audio/video files (consider using Git LFS or hosting separately)
-# Uncomment if you want to exclude large media files from git
-# *.mp3
-# *.mp4
-# *.wav
-# *.flac
+# node.js
+#
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# fastlane
+#
+# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
+# screenshots whenever they are needed.
+# For more information about the recommended setup visit:
+# https://docs.fastlane.tools/best-practices/source-control/
+
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
+
+# Bundle artifact
+*.jsbundle
+
+# Ruby / CocoaPods
+**/Pods/
+/vendor/bundle/
+
+# Temporary files created by Metro to check the health of the file watcher
+.metro-health-check*
+
+# testing
+/coverage
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Listen clips (free stock footage, processed). Licensed for use in the app, but the repo is
+# public and the licences forbid giving the files away. The app falls back to the scene
+# photographs without them (src/data/scenes.ts, VIDEO_SOURCES.md).
+assets/videos/scenes/*.mp4
+src/data/sceneVideos.local.ts
+
+# Stock clip originals, licence log and licence screenshots (not redistributed)
+/.stock/
