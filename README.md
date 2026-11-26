@@ -29,7 +29,8 @@ The privacy and data-transfer documents at the root (`PRIVACY_POLICY.md` and oth
 | `android/app/src/main/java/com/Luziv/arcadia/MainActivity.kt` | High refresh rate |
 | `assets/native/{sounds,fonts}` | Packed as Android assets (sounds are played natively) |
 | `assets/videos`, `assets/images`, `assets/icon` | Bundled through Metro (`*.mp3` / `*.mp4` via Git LFS) |
-| `assets/videos/pinterest-unlicensed/`, `src/data/sceneVideos.local.ts` | Placeholder Listen clips, **gitignored** (unlicensed; the repo is public). Without them each place shows its photograph |
+| `assets/videos/scenes/`, `src/data/sceneVideos.local.ts` | Listen clips from free stock (Pexels), **gitignored**: the repo is public and the licences forbid giving the files away. Without them each place shows its photograph. See VIDEO_SOURCES.md |
+| `.stock/` | Gitignored: the downloaded originals and the licence log (`LICENCES.md`) |
 | `patches/` | patch-package fixes for dependencies (react-native-video TextureView) |
 
 ## Run (Android)

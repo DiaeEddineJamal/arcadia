@@ -77,7 +77,11 @@ yarn-error.log
 !.yarn/sdks
 !.yarn/versions
 
-# Unlicensed placeholder Listen clips: the GitHub repo is public. The app falls back to the
-# scene photographs without them (src/data/scenes.ts, VIDEO_VISUALS.md).
-assets/videos/pinterest-unlicensed/*.mp4
+# Listen clips (free stock footage, processed). Licensed for use in the app, but the repo is
+# public and the licences forbid giving the files away. The app falls back to the scene
+# photographs without them (src/data/scenes.ts, VIDEO_SOURCES.md).
+assets/videos/scenes/*.mp4
 src/data/sceneVideos.local.ts
+
+# Stock clip originals, licence log and licence screenshots (not redistributed)
+/.stock/

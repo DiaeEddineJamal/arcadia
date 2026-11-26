@@ -36,8 +36,8 @@ export interface SceneClip {
 }
 
 /**
- * The Listen clips for each sound. They are unlicensed placeholders, kept out of git in
- * sceneVideos.local.ts (gitignored, with assets/videos/pinterest-unlicensed/). Without that file
+ * The Listen clips for each sound: free stock footage (VIDEO_SOURCES.md), kept out of the public
+ * repo in sceneVideos.local.ts (gitignored, with assets/videos/scenes/). Without that file
  * every place shows its photograph. Loaded as an optional dependency (metro.config.js).
  */
 function loadLocalClips(): Partial<Record<string, SceneClip>> {
